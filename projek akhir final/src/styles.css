@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply m-0 bg-page text-ink font-sans;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-amber/50;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-lg border border-line bg-panel shadow-workbench;
+  }
+
+  .chip {
+    @apply inline-flex min-h-7 items-center rounded-md bg-teal/15 px-2.5 text-xs font-black text-teal;
+  }
+
+  .soft-card {
+    @apply rounded-lg border border-line bg-[#151f27];
+  }
+
+  .primary-btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal px-4 font-black text-white transition hover:bg-[#065f5e];
+  }
+
+  .ghost-btn {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-[#111a22] px-3 font-extrabold text-ink transition hover:bg-teal/10 hover:text-teal;
+  }
+}

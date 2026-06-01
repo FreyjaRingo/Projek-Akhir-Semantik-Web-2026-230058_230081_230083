@@ -1,0 +1,6 @@
+{
+  "installCommand": "npm ci --prefix \"projek akhir final\"",
+  "buildCommand": "npm run build --prefix \"projek akhir final\"",
+  "outputDirectory": "projek akhir final/dist",
+  "framework": "vite"
+}
