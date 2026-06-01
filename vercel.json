@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm ci --prefix \"projek akhir final\"",
-  "buildCommand": "npm run build --prefix \"projek akhir final\"",
+  "installCommand": "npm --prefix \"projek akhir final\" ci",
+  "buildCommand": "npm --prefix \"projek akhir final\" run build",
   "outputDirectory": "projek akhir final/dist",
   "framework": "vite"
 }
