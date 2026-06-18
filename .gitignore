@@ -43,3 +43,5 @@ prisma/migrations/
 # Cache
 .cache/
 .vercel
+
+.vercel
