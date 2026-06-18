@@ -548,7 +548,7 @@ async function handleDescription(question: string, entityName: string | null): P
     const { data: anime } = await supabase
       .from('Anime')
       .select(`
-        id, title, description, score, year, type, status,
+        id, title, description, score, year, type, status, imageUrl,
         AnimeGenre(genre:Genre(name)),
         AnimeStudio(studio:Studio(name)),
         AnimeTheme(theme:Theme(name))
