@@ -6,11 +6,11 @@
   "description": "React + Tailwind final project for AnimeGraph Nexus with Semantic Web and PostgreSQL backend.",
   "scripts": {
     "dev": "npm run sync:data && next dev",
-    "build": "npm run sync:data && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "sync:data": "node scripts/sync-rdf-data.mjs",
-    "check": "npm run build",
+    "check": "next build",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
