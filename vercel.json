@@ -4,6 +4,7 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "regions": ["sin1"],
+  "project": "animegraph-nexus",
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "@supabase_publishable_key",
