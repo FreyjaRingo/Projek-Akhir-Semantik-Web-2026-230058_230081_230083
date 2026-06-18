@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply m-0 min-h-screen bg-page font-sans text-ink antialiased;
+    background-image:
+      radial-gradient(circle at 12% -10%, rgba(143, 180, 154, 0.1), transparent 28rem),
+      radial-gradient(circle at 90% 8%, rgba(197, 154, 91, 0.08), transparent 24rem);
+  }
+
+  ::selection {
+    background: rgba(197, 154, 91, 0.34);
+    color: #fffdf6;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-amber/60;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #11100e;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid #11100e;
+    border-radius: 999px;
+    background: #3f3a31;
+  }
+}
+
+@layer components {
+  .panel,
+  .card {
+    @apply rounded-xl border border-line bg-panel shadow-workbench;
+  }
+
+  .soft-card {
+    @apply rounded-lg border border-line bg-[#1f1c17];
+  }
+
+  .card-hover {
+    @apply rounded-xl border border-line bg-panel shadow-workbench transition hover:border-amber/70 hover:bg-[#211f1a];
+  }
+
+  .chip {
+    @apply inline-flex min-h-7 items-center rounded-md border border-line bg-[#211f1a] px-2.5 text-xs font-black text-[#c8bfaa];
+  }
+
+  .primary-btn,
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#8faa8c] px-4 font-black text-[#11100e] transition hover:bg-[#a8bda0] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .ghost-btn,
+  .btn-secondary,
+  .btn-ghost {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line bg-[#171512] px-3 font-extrabold text-ink transition hover:border-amber/70 hover:bg-[#211f1a] hover:text-amber disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .field,
+  .input {
+    @apply min-h-11 w-full rounded-lg border border-line bg-[#14120f] px-3 text-ink outline-none placeholder:text-muted focus:border-amber;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black;
+  }
+
+  .badge-violet,
+  .badge-emerald {
+    @apply badge border-green/40 bg-green/10 text-green;
+  }
+
+  .badge-amber {
+    @apply badge border-amber/40 bg-amber/10 text-amber;
+  }
+
+  .badge-rose {
+    @apply badge border-rose/40 bg-rose/10 text-rose;
+  }
+
+  .stat-card {
+    @apply rounded-xl border border-line bg-panel p-6 shadow-workbench;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-teal via-amber to-teal bg-clip-text text-transparent;
+  }
+
+  .nav-link {
+    @apply text-sm font-black text-muted transition hover:text-amber;
+  }
+
+  .section-title {
+    @apply text-xl font-black text-ink;
+  }
+
+  .nexus-mark {
+    position: relative;
+    display: inline-grid;
+    height: 2rem;
+    width: 2rem;
+    flex: 0 0 auto;
+    place-items: center;
+  }
+
+  .nexus-mark::before,
+  .nexus-mark::after {
+    position: absolute;
+    content: "";
+    background: #6f8065;
+  }
+
+  .nexus-mark::before {
+    height: 1px;
+    width: 1.35rem;
+    transform: rotate(28deg);
+  }
+
+  .nexus-mark::after {
+    height: 1px;
+    width: 1.35rem;
+    transform: rotate(-28deg);
+  }
+
+  .nexus-dot {
+    position: absolute;
+    height: 0.38rem;
+    width: 0.38rem;
+    border: 1px solid #b99760;
+    border-radius: 999px;
+    background: #191713;
+  }
+
+  .nexus-dot:nth-child(1) {
+    left: 0.2rem;
+    top: 0.38rem;
+  }
+
+  .nexus-dot:nth-child(2) {
+    right: 0.18rem;
+    top: 0.72rem;
+  }
+
+  .nexus-dot:nth-child(3) {
+    bottom: 0.28rem;
+    left: 0.75rem;
+  }
+
+  .bg-graph-grid {
+    background-image:
+      linear-gradient(rgba(143, 180, 154, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(197, 154, 91, 0.07) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

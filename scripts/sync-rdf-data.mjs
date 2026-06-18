@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Papa from "papaparse";
@@ -8,6 +8,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PUBLIC_DATA = resolve(ROOT, "public", "data");
 const OUTPUT_TTL = resolve(PUBLIC_DATA, "data.ttl");
 const OUTPUT_JSON = resolve(PUBLIC_DATA, "animegraph.json");
+const RETRYABLE_FILE_ERRORS = new Set(["EACCES", "EBUSY", "EPERM", "UNKNOWN"]);
 const SOURCE_CANDIDATES = [
   resolve(ROOT, "..", "data", "processed", "data.ttl"),
   OUTPUT_TTL
@@ -305,8 +306,29 @@ async function main() {
   if (sourcePath !== OUTPUT_TTL) {
     await copyFile(sourcePath, OUTPUT_TTL);
   }
-  await writeFile(OUTPUT_JSON, JSON.stringify(graph), "utf8");
+  await writeFileAtomic(OUTPUT_JSON, JSON.stringify(graph));
   console.log(`Synced ${graph.totalEntities} RDF entities and ${graph.relationCount} relations.`);
+}
+
+async function writeFileAtomic(targetPath, contents) {
+  const temporaryPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(temporaryPath, contents, "utf8");
+
+  try {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        await rename(temporaryPath, targetPath);
+        return;
+      } catch (error) {
+        if (!RETRYABLE_FILE_ERRORS.has(error.code) || attempt === 7) throw error;
+        const delay = Math.min(200 * 2 ** attempt, 3000);
+        console.warn(`animegraph.json sedang dipakai proses lain. Mencoba lagi dalam ${delay}ms...`);
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, delay));
+      }
+    }
+  } finally {
+    await rm(temporaryPath, { force: true }).catch(() => {});
+  }
 }
 
 async function readExternalAnime() {

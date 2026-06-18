@@ -1,0 +1,245 @@
+// Prisma Schema for AnimeGraph Nexus
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// Core Entities
+// ============================================
+
+model Anime {
+  id            String      @id @default(cuid())
+  malId         Int?        @unique // MyAnimeList ID for syncing
+  title         String
+  titleEnglish  String?
+  titleJapanese String?
+  description   String?     @db.Text
+  imageUrl      String?
+  score         Float?
+  scoredBy      Int?
+  rank          Int?
+  popularity    Int?
+  episodes      Int?
+  duration      Int? // in minutes
+  type          AnimeType   @default(TV)
+  status        AnimeStatus @default(AIRING)
+  year          Int?
+  season        String?
+  source        String?
+  rating        String?
+  broadcast     String?
+
+  // Metadata
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSyncedAt DateTime?
+
+  // Relations
+  studios       AnimeStudio[]
+  genres        AnimeGenre[]
+  themes        AnimeTheme[]
+  characters    Character[]
+  relationsFrom AnimeRelation[] @relation("AnimeRelations")
+  relationsTo   AnimeRelation[] @relation("RelatedAnime")
+
+  @@index([title])
+  @@index([malId])
+  @@index([score])
+  @@index([year])
+  @@index([type])
+  @@index([status])
+}
+
+enum AnimeType {
+  TV
+  MOVIE
+  OVA
+  SPECIAL
+  ONA
+  MUSIC
+}
+
+enum AnimeStatus {
+  AIRING
+  COMPLETED
+  TO_BE_AIRED
+  CANCELLED
+  HIATUS
+}
+
+// ============================================
+// Lookup Entities
+// ============================================
+
+model Studio {
+  id    String  @id @default(cuid())
+  malId Int?    @unique
+  name  String  @unique
+  url   String?
+
+  anime AnimeStudio[]
+
+  @@index([name])
+}
+
+model Genre {
+  id    String @id @default(cuid())
+  malId Int?   @unique
+  name  String @unique
+
+  anime AnimeGenre[]
+
+  @@index([name])
+}
+
+model Theme {
+  id    String @id @default(cuid())
+  malId Int?   @unique
+  name  String @unique
+
+  anime AnimeTheme[]
+
+  @@index([name])
+}
+
+// ============================================
+// Junction Tables (Many-to-Many)
+// ============================================
+
+model AnimeStudio {
+  animeId  String
+  studioId String
+  isMain   Boolean @default(true)
+
+  anime  Anime  @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@id([animeId, studioId])
+  @@index([animeId])
+  @@index([studioId])
+}
+
+model AnimeGenre {
+  animeId String
+  genreId String
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  genre Genre @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([animeId, genreId])
+  @@index([animeId])
+  @@index([genreId])
+}
+
+model AnimeTheme {
+  animeId String
+  themeId String
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  theme Theme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([animeId, themeId])
+  @@index([animeId])
+  @@index([themeId])
+}
+
+// ============================================
+// Relations (Anime-to-Anime)
+// ============================================
+
+model AnimeRelation {
+  id             String       @id @default(cuid())
+  animeId        String
+  relatedAnimeId String
+  relationType   RelationType
+
+  anime        Anime @relation("AnimeRelations", fields: [animeId], references: [id], onDelete: Cascade)
+  relatedAnime Anime @relation("RelatedAnime", fields: [relatedAnimeId], references: [id], onDelete: Cascade)
+
+  @@unique([animeId, relatedAnimeId])
+  @@index([animeId])
+  @@index([relatedAnimeId])
+}
+
+enum RelationType {
+  SEQUEL
+  PREQUEL
+  SIDE_STORY
+  PARENT_STORY
+  SUMMARY
+  ALTERNATIVE_VERSION
+  ADAPTATION
+  OTHER
+  CHARACTER
+  SPIN_OFF
+  OTHER_VERSION
+}
+
+// ============================================
+// Characters
+// ============================================
+
+model Character {
+  id            String        @id @default(cuid())
+  malId         Int?
+  animeId       String
+  name          String
+  nameKanji     String?
+  imageUrl      String?
+  role          CharacterRole @default(SUPPORTING)
+  voiceActor    String?
+  voiceActorImg String?
+  voiceLang     String?
+
+  anime Anime @relation(fields: [animeId], references: [id], onDelete: Cascade)
+
+  @@index([animeId])
+  @@index([name])
+}
+
+enum CharacterRole {
+  MAIN
+  SUPPORTING
+  BACKGROUND
+}
+
+// ============================================
+// Sync Logs (for tracking Jikan API syncs)
+// ============================================
+
+model SyncLog {
+  id             String     @id @default(cuid())
+  syncType       SyncType
+  status         SyncStatus @default(RUNNING)
+  itemsProcessed Int        @default(0)
+  totalItems     Int?
+  startedAt      DateTime   @default(now())
+  completedAt    DateTime?
+  errorMessage   String?    @db.Text
+  metadata       Json?
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+enum SyncType {
+  FULL
+  INCREMENTAL
+  SINGLE
+  MANUAL
+}
+
+enum SyncStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
