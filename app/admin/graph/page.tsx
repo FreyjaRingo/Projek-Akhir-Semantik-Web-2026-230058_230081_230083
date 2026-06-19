@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ZoomIn, ZoomOut, RotateCcw, RefreshCw, Loader2, Search } from 'lucide-react';
 
