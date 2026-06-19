@@ -152,14 +152,16 @@ async function validateData(): Promise<ValidationResult> {
   // Get genre coverage
   const { data: allAnime } = await supabase
     .from('Anime')
-    .select('id, AnimeGenre(id)')
+    .select('id, AnimeGenre(genre:Genre(id))')
     .not('lastSyncedAt', 'is', null)
     .limit(1000);
 
   let withGenre = 0;
   for (const anime of allAnime || []) {
-    if ((anime as any).AnimeGenre && (anime as any).AnimeGenre.length > 0) {
-      withGenre++;
+    const genreData = (anime as any).AnimeGenre;
+    if (genreData && genreData.length > 0) {
+      const hasGenre = genreData.some((g: any) => g.genre?.id);
+      if (hasGenre) withGenre++;
     }
   }
 
@@ -173,14 +175,16 @@ async function validateData(): Promise<ValidationResult> {
   // Get studio coverage
   const { data: allAnimeStudio } = await supabase
     .from('Anime')
-    .select('id, AnimeStudio(id)')
+    .select('id, AnimeStudio(studio:Studio(id))')
     .not('lastSyncedAt', 'is', null)
     .limit(1000);
 
   let withStudio = 0;
   for (const anime of allAnimeStudio || []) {
-    if ((anime as any).AnimeStudio && (anime as any).AnimeStudio.length > 0) {
-      withStudio++;
+    const studioData = (anime as any).AnimeStudio;
+    if (studioData && studioData.length > 0) {
+      const hasStudio = studioData.some((s: any) => s.studio?.id);
+      if (hasStudio) withStudio++;
     }
   }
 

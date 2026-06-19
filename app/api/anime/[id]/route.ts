@@ -28,19 +28,19 @@ const updateAnimeSchema = z.object({
 // GET /api/anime/[id] - Get single anime
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
+    // Get anime without Character relation (to avoid schema cache issues)
     const { data: anime, error } = await supabase
       .from('Anime')
       .select(`
         *,
         AnimeStudio(studio:Studio(*)),
         AnimeGenre(genre:Genre(*)),
-        AnimeTheme(theme:Theme(*)),
-        Character(*)
+        AnimeTheme(theme:Theme(*))
       `)
       .eq('id', id)
       .single();
@@ -48,6 +48,12 @@ export async function GET(
     if (error || !anime) {
       return NextResponse.json({ error: 'Anime not found' }, { status: 404 });
     }
+
+    // Get characters separately
+    const { data: characters } = await supabase
+      .from('Character')
+      .select('*')
+      .eq('animeId', id);
 
     // Transform response
     const response = {
@@ -77,7 +83,7 @@ export async function GET(
       })) || [],
       genres: anime.AnimeGenre?.map((g: any) => g.genre?.name).filter(Boolean) || [],
       themes: anime.AnimeTheme?.map((t: any) => t.theme?.name).filter(Boolean) || [],
-      characters: anime.Character || [],
+      characters: characters || [],
       createdAt: anime.createdAt,
       updatedAt: anime.updatedAt,
       lastSyncedAt: anime.lastSyncedAt,
@@ -96,9 +102,9 @@ export async function GET(
 // PUT /api/anime/[id] - Update anime
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     // Check if anime exists
@@ -212,9 +218,9 @@ export async function PUT(
 // DELETE /api/anime/[id] - Delete anime
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const { error } = await supabase

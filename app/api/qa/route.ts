@@ -114,11 +114,29 @@ function detectIntent(question: string): IntentType {
 }
 
 function extractEntity(question: string, intent: IntentType): string | null {
-  // Extract anime name from question
+  // Extract anime name from question - handle various patterns
+
+  // Pattern for "mirip dengan X", "like X", "similar to X"
+  const similarMatch = question.match(/(?:yang\s+)?mirip\s+dengan\s+(.+?)(?:\s*$|\s+[,.?])/i) ||
+                      question.match(/(?:that['\s]is\s+)?similar\s+to\s+(.+?)(?:\s*$|\s+[,.?])/i);
+  if (similarMatch) {
+    return similarMatch[1].trim();
+  }
+
+  // Pattern for "deskripsi anime X", "description of anime X", "sinopsis X"
+  // Match: deskripsi anime [name] -> capture [name]
+  const descMatch = question.match(/(?:deskripsi|sinopsis|description|apa\s+itu)\s+(?:anime\s+)?(.+?)$/i);
+  if (descMatch) {
+    const name = descMatch[1]?.trim();
+    if (name) return name;
+  }
+
+  // Pattern for "anime X" (single word anime name)
   const animeMatch = question.match(/(?:anime\s+)?(.+?)(?:\s+(?:yang|yang\s+diproduksi|yang\s+bergenre|yang\s+muncul|$))/i);
   if (animeMatch) {
     return animeMatch[1].trim();
   }
+
   return null;
 }
 
@@ -191,39 +209,80 @@ export async function GET(request: NextRequest) {
 
 async function handleGenreSearch(question: string, entityName: string | null, year: number | null): Promise<QAResult> {
   const grounding: QAResult['grounding'] = [];
-  let query = supabase
-    .from('Anime')
-    .select(`
-      id, title, score, imageUrl, year,
-      AnimeGenre(genre:Genre(id, name))
-    `)
-    .not('lastSyncedAt', 'is', null);
 
   // Extract genre from question
-  const genreMatch = question.match(/genre\s+(\w+)|bertema\s+(\w+)/i);
+  const genreMatch = question.match(/genre\s+([A-Za-z]+)|bertema\s+([A-Za-z]+)/i);
   const genreName = genreMatch ? (genreMatch[1] || genreMatch[2]) : null;
 
+  let animeList: any[] = [];
+
   if (genreName) {
-    query = query.contains('AnimeGenre.genre.name', genreName);
-  }
+    // First find genre by name
+    const { data: genreData } = await supabase
+      .from('Genre')
+      .select('id, name')
+      .ilike('name', `%${genreName}%`)
+      .limit(5);
 
-  if (year) {
-    query = query.eq('year', year);
-  }
+    if (genreData && genreData.length > 0) {
+      // Find anime that have this genre
+      const genreIds = genreData.map(g => g.id);
 
-  const { data: animeList } = await query.limit(20);
+      const { data: animeWithGenre } = await supabase
+        .from('AnimeGenre')
+        .select(`
+          anime:Anime(id, title, score, imageUrl, year),
+          genre:Genre(id, name)
+        `)
+        .in('genreId', genreIds);
+
+      if (animeWithGenre) {
+        // Group by anime
+        const animeMap = new Map<string, any>();
+        for (const item of animeWithGenre) {
+          if (item.anime && !animeMap.has(item.anime.id)) {
+            animeMap.set(item.anime.id, {
+              ...item.anime,
+              genres: [item.genre?.name].filter(Boolean)
+            });
+          } else if (item.anime && animeMap.has(item.anime.id)) {
+            const existing = animeMap.get(item.anime.id);
+            if (item.genre?.name && !existing.genres.includes(item.genre.name)) {
+              existing.genres.push(item.genre.name);
+            }
+          }
+        }
+        animeList = Array.from(animeMap.values());
+      }
+    }
+  } else {
+    // No genre specified - return random/top anime
+    const { data: allAnime } = await supabase
+      .from('Anime')
+      .select(`
+        id, title, score, imageUrl, year,
+        AnimeGenre(genre:Genre(name))
+      `)
+      .not('lastSyncedAt', 'is', null)
+      .order('score', { ascending: false })
+      .limit(20);
+
+    animeList = (allAnime || []).map((a: any) => ({
+      ...a,
+      genres: a.AnimeGenre?.map((ag: any) => ag.genre?.name).filter(Boolean) || []
+    }));
+  }
 
   // Build grounding facts
-  for (const anime of animeList || []) {
-    const genres = (anime as any).AnimeGenre?.map((ag: any) => ag.genre?.name).filter(Boolean) || [];
+  for (const anime of animeList) {
     grounding.push({
       anime: anime.title,
-      fact: `hasGenre: ${genres.join(', ')}`,
+      fact: `hasGenre: ${(anime.genres || []).join(', ')}`,
       source: 'RDF Graph'
     });
   }
 
-  const answer = animeList && animeList.length > 0
+  const answer = animeList.length > 0
     ? `Ditemukan ${animeList.length} anime${genreName ? ` dengan genre "${genreName}"` : ''}${year ? ` dari tahun ${year}` : ''}`
     : `Tidak ada anime yang cocok dengan kriteria tersebut`;
 
@@ -231,9 +290,9 @@ async function handleGenreSearch(question: string, entityName: string | null, ye
     question,
     answer,
     intent: 'genre_search',
-    confidence: animeList && animeList.length > 0 ? 0.9 : 0.5,
+    confidence: animeList.length > 0 ? 0.9 : 0.5,
     grounding,
-    relatedAnime: animeList?.slice(0, 5).map(a => ({
+    relatedAnime: animeList.slice(0, 5).map(a => ({
       id: a.id,
       title: a.title,
       score: a.score,
@@ -245,35 +304,62 @@ async function handleGenreSearch(question: string, entityName: string | null, ye
 async function handleStudioSearch(question: string, entityName: string | null): Promise<QAResult> {
   const grounding: QAResult['grounding'] = [];
 
-  // Extract studio name
-  const studioMatch = question.match(/studio\s+(\w+)|diproduksi\s+oleh\s+(\w+)/i);
+  // Extract studio name - be more flexible with pattern matching
+  const studioMatch = question.match(/studio\s+([A-Za-z]+)|diproduksi\s+(?:oleh\s+)?([A-Za-z]+)/i);
   const studioName = studioMatch ? (studioMatch[1] || studioMatch[2]) : entityName;
 
-  let query = supabase
-    .from('Anime')
-    .select(`
-      id, title, score, imageUrl, year,
-      AnimeStudio(studio:Studio(id, name))
-    `)
-    .not('lastSyncedAt', 'is', null);
+  let animeList: any[] = [];
 
   if (studioName) {
-    query = query.contains('AnimeStudio.studio.name', studioName);
+    // First find studio by name
+    const { data: studioData } = await supabase
+      .from('Studio')
+      .select('id, name')
+      .ilike('name', `%${studioName}%`)
+      .limit(5);
+
+    if (studioData && studioData.length > 0) {
+      // Find anime that have this studio
+      const studioIds = studioData.map(s => s.id);
+
+      const { data: animeWithStudio } = await supabase
+        .from('AnimeStudio')
+        .select(`
+          anime:Anime(id, title, score, imageUrl, year),
+          studio:Studio(id, name)
+        `)
+        .in('studioId', studioIds);
+
+      if (animeWithStudio) {
+        const animeMap = new Map<string, any>();
+        for (const item of animeWithStudio) {
+          if (item.anime && !animeMap.has(item.anime.id)) {
+            animeMap.set(item.anime.id, {
+              ...item.anime,
+              studios: [item.studio?.name].filter(Boolean)
+            });
+          } else if (item.anime && animeMap.has(item.anime.id)) {
+            const existing = animeMap.get(item.anime.id);
+            if (item.studio?.name && !existing.studios.includes(item.studio.name)) {
+              existing.studios.push(item.studio.name);
+            }
+          }
+        }
+        animeList = Array.from(animeMap.values());
+      }
+    }
   }
 
-  const { data: animeList } = await query.limit(20);
-
   // Build grounding facts
-  for (const anime of animeList || []) {
-    const studios = (anime as any).AnimeStudio?.map((as: any) => as.studio?.name).filter(Boolean) || [];
+  for (const anime of animeList) {
     grounding.push({
       anime: anime.title,
-      fact: `producedBy: ${studios.join(', ')}`,
+      fact: `producedBy: ${(anime.studios || []).join(', ')}`,
       source: 'RDF Graph'
     });
   }
 
-  const answer = animeList && animeList.length > 0
+  const answer = animeList.length > 0
     ? `Ditemukan ${animeList.length} anime${studioName ? ` yang diproduksi oleh "${studioName}"` : ''}`
     : `Tidak ada anime dari studio tersebut`;
 
@@ -281,9 +367,9 @@ async function handleStudioSearch(question: string, entityName: string | null): 
     question,
     answer,
     intent: 'studio_search',
-    confidence: animeList && animeList.length > 0 ? 0.9 : 0.5,
+    confidence: animeList.length > 0 ? 0.9 : 0.5,
     grounding,
-    relatedAnime: animeList?.slice(0, 5).map(a => ({
+    relatedAnime: animeList.slice(0, 5).map(a => ({
       id: a.id,
       title: a.title,
       score: a.score,
@@ -299,23 +385,33 @@ async function handleCharacterSearch(question: string, entityName: string | null
   const charMatch = question.match(/karakter\s+(.+?)(?:\s+yang|\s+muncul|$)/i);
   const charName = charMatch ? charMatch[1].trim() : entityName;
 
-  let query = supabase
-    .from('Anime')
-    .select(`
-      id, title, score, imageUrl,
-      Character(id, name, role)
-    `)
-    .not('lastSyncedAt', 'is', null);
+  let animeList: any[] = [];
 
   if (charName) {
-    query = query.ilike('Character.name', `%${charName}%`);
+    // Search in Character table first
+    const { data: characters } = await supabase
+      .from('Character')
+      .select('id, name, animeId')
+      .ilike('name', `%${charName}%`)
+      .limit(20);
+
+    if (characters && characters.length > 0) {
+      const animeIds = [...new Set(characters.map(c => c.animeId))];
+
+      // Get anime details for these characters
+      const { data: animeData } = await supabase
+        .from('Anime')
+        .select('id, title, score, imageUrl, Character(id, name, role)')
+        .in('id', animeIds)
+        .limit(20);
+
+      animeList = animeData || [];
+    }
   }
 
-  const { data: animeList } = await query.limit(20);
-
   // Build grounding facts
-  for (const anime of animeList || []) {
-    const characters = (anime as any).Character?.map((c: any) => `${c.name} (${c.role})`).filter(Boolean) || [];
+  for (const anime of animeList) {
+    const characters = (anime as any).Character?.map((c: any) => `${c.name}`).filter(Boolean) || [];
     grounding.push({
       anime: anime.title,
       fact: `featuresCharacter: ${characters.join(', ')}`,
@@ -323,7 +419,7 @@ async function handleCharacterSearch(question: string, entityName: string | null
     });
   }
 
-  const answer = animeList && animeList.length > 0
+  const answer = animeList.length > 0
     ? `Ditemukan ${animeList.length} anime${charName ? ` dengan karakter "${charName}"` : ''}`
     : `Tidak ada anime dengan karakter tersebut`;
 
@@ -431,8 +527,28 @@ async function handleYearSearch(question: string, year: number | null): Promise<
 async function handleRecommendation(question: string, entityName: string | null): Promise<QAResult> {
   const grounding: QAResult['grounding'] = [];
 
+  // Try to extract anime name if entityName is null
+  let searchName = entityName;
+
+  // If no entity name found, try to find anime mentioned in question
+  if (!searchName) {
+    // Match "anime [name]" pattern
+    const animeMatch = question.match(/anime\s+(\w+[\w\s]*?)(?:\s+yang|\s*$)/i);
+    if (animeMatch) {
+      searchName = animeMatch[1].trim();
+    } else {
+      // Try "Frieren" type patterns - just a name without "anime"
+      const nameMatch = question.match(/(?:yang\s+)?(?:mirip|mirip\s+dengan)\s+(.+?)(?:\s*$|\s+[?.,])/i);
+      if (nameMatch) {
+        searchName = nameMatch[1].trim();
+      }
+    }
+  }
+
   // Find anime similar to the given one
-  if (entityName) {
+  if (searchName) {
+    // First, try to find anime with genre/studio/theme relationships
+    // This ensures we get the TTL-imported anime with proper relationships
     const { data: sourceAnime } = await supabase
       .from('Anime')
       .select(`
@@ -441,14 +557,47 @@ async function handleRecommendation(question: string, entityName: string | null)
         AnimeStudio(studio:Studio(id)),
         AnimeTheme(theme:Theme(id))
       `)
-      .ilike('title', `%${entityName}%`)
-      .limit(1)
-      .single();
+      .ilike('title', `%${searchName}%`)
+      .limit(10); // Get more to find one with relationships
 
-    if (sourceAnime) {
-      const sourceGenres = (sourceAnime as any).AnimeGenre?.map((ag: any) => ag.genre?.id) || [];
-      const sourceStudios = (sourceAnime as any).AnimeStudio?.map((as: any) => as.studio?.id) || [];
-      const sourceThemes = (sourceAnime as any).AnimeTheme?.map((at: any) => at.theme?.id) || [];
+    // Filter to find anime that has at least one genre/studio/theme relationship
+    const animeWithRelationships = (sourceAnime || []).filter((a: any) => {
+      const hasGenre = a.AnimeGenre && a.AnimeGenre.length > 0;
+      const hasStudio = a.AnimeStudio && a.AnimeStudio.length > 0;
+      const hasTheme = a.AnimeTheme && a.AnimeTheme.length > 0;
+      return hasGenre || hasStudio || hasTheme;
+    });
+
+    // Use anime with relationships if found, otherwise use first result
+    const selectedAnime = animeWithRelationships[0] || sourceAnime?.[0];
+
+    if (selectedAnime) {
+      const sourceGenres = (selectedAnime as any).AnimeGenre?.map((ag: any) => ag.genre?.id) || [];
+      const sourceStudios = (selectedAnime as any).AnimeStudio?.map((as: any) => as.studio?.id) || [];
+      const sourceThemes = (selectedAnime as any).AnimeTheme?.map((at: any) => at.theme?.id) || [];
+
+      // If no relationships found, try a broader search
+      if (sourceGenres.length === 0 && sourceStudios.length === 0 && sourceThemes.length === 0) {
+        const { data: broaderSearch } = await supabase
+          .from('Anime')
+          .select(`id, title, score, imageUrl`)
+          .ilike('title', `%${searchName}%`)
+          .limit(1);
+
+        if (broaderSearch && broaderSearch.length > 0) {
+          return {
+            question,
+            answer: `Anime "${searchName}" ditemukan tapi tidak memiliki data genre untuk mencari yang mirip.`,
+            intent: 'recommendation',
+            confidence: 0.3,
+            grounding: [{
+              anime: broaderSearch[0].title,
+              fact: 'Anime ditemukan tapi tanpa metadata similarity',
+              source: 'RDF Graph'
+            }]
+          };
+        }
+      }
 
       // Find similar anime
       const { data: allAnime } = await supabase
@@ -459,9 +608,9 @@ async function handleRecommendation(question: string, entityName: string | null)
           AnimeStudio(studio:Studio(id, name)),
           AnimeTheme(theme:Theme(id, name))
         `)
-        .neq('id', sourceAnime.id)
+        .neq('id', selectedAnime.id)
         .not('lastSyncedAt', 'is', null)
-        .limit(50);
+        .limit(100);
 
       // Score by similarity
       const scored = (allAnime || []).map((anime: any) => {
@@ -482,7 +631,7 @@ async function handleRecommendation(question: string, entityName: string | null)
         .slice(0, 10);
 
       grounding.push({
-        anime: sourceAnime.title,
+        anime: selectedAnime.title,
         fact: `Reference entity for similarity search`,
         source: 'RDF Graph'
       });
@@ -497,7 +646,7 @@ async function handleRecommendation(question: string, entityName: string | null)
       }
 
       const answer = scored.length > 0
-        ? `Ditemukan ${scored.length} anime yang mirip dengan "${sourceAnime.title}"`
+        ? `Ditemukan ${scored.length} anime yang mirip dengan "${selectedAnime.title}"`
         : `Tidak ada anime yang mirip ditemukan`;
 
       return {
@@ -512,6 +661,19 @@ async function handleRecommendation(question: string, entityName: string | null)
           score: item.anime.score,
           imageUrl: item.anime.imageUrl
         }))
+      };
+    } else {
+      // Anime not found, return general recommendations
+      return {
+        question,
+        answer: `Tidak dapat menemukan anime "${searchName}". Berikut rekomendasi anime top rated:`,
+        intent: 'recommendation',
+        confidence: 0.3,
+        grounding: [{
+          anime: searchName,
+          fact: 'Anime tidak ditemukan di database',
+          source: 'RDF Graph'
+        }]
       };
     }
   }
@@ -545,7 +707,8 @@ async function handleRecommendation(question: string, entityName: string | null)
 
 async function handleDescription(question: string, entityName: string | null): Promise<QAResult> {
   if (entityName) {
-    const { data: anime } = await supabase
+    // Try to find anime with relationships first
+    const { data: animeWithRelations } = await supabase
       .from('Anime')
       .select(`
         id, title, description, score, year, type, status, imageUrl,
@@ -554,9 +717,17 @@ async function handleDescription(question: string, entityName: string | null): P
         AnimeTheme(theme:Theme(name))
       `)
       .ilike('title', `%${entityName}%`)
-      .not('lastSyncedAt', 'is', null)
-      .limit(1)
-      .single();
+      .limit(10);
+
+    // Filter to find one with relationships
+    const animeWithData = (animeWithRelations || []).filter((a: any) => {
+      const hasGenre = a.AnimeGenre && a.AnimeGenre.length > 0;
+      const hasStudio = a.AnimeStudio && a.AnimeStudio.length > 0;
+      const hasTheme = a.AnimeTheme && a.AnimeTheme.length > 0;
+      return hasGenre || hasStudio || hasTheme;
+    });
+
+    const anime = animeWithData[0] || (animeWithRelations && animeWithRelations[0]);
 
     if (anime) {
       const genres = (anime as any).AnimeGenre?.map((ag: any) => ag.genre?.name).filter(Boolean) || [];
@@ -570,7 +741,7 @@ async function handleDescription(question: string, entityName: string | null): P
         confidence: 0.95,
         grounding: [{
           anime: anime.title,
-          fact: `Entity type: ${anime.type}, Format: ${anime.type}, Genre: ${genres.join(', ')}, Studio: ${studios.join(', ')}, Theme: ${themes.join(', ')}`,
+          fact: `Genre: ${genres.join(', ') || 'N/A'}, Studio: ${studios.join(', ') || 'N/A'}, Themes: ${themes.join(', ') || 'N/A'}`,
           source: 'RDF Graph'
         }],
         relatedAnime: [{

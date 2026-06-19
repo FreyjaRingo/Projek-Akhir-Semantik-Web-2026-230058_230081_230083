@@ -1,46 +1,64 @@
 # AnimeGraph Nexus
 
-AnimeGraph Nexus adalah aplikasi Next.js untuk eksplorasi knowledge graph anime berbasis RDF. Aplikasi menyediakan semantic search lokal, detail resource, visualisasi relasi, semantic compare, grounded QA, demo SPARQL, pencarian live Wikidata, dashboard database, sinkronisasi Jikan, dan ekspor RDF.
+AnimeGraph Nexus adalah aplikasi web berbasis Next.js untuk eksplorasi knowledge graph anime menggunakan Semantic Web (RDF). Aplikasi ini menyediakan semantic search lokal, detail resource, visualisasi relasi graph, semantic compare, grounded QA, demo SPARQL, pencarian live Wikidata, dashboard database, sinkronisasi Jikan, dan ekspor data RDF.
 
-## Fitur Utama
+Proyek ini dibangun sebagai tugas akhir mata kuliah Semantik Web 2026.
 
-- Workbench Semantic Web dari `public/data/data.ttl` dan `public/data/animegraph.json`
-- Pencarian resource lokal berdasarkan anime, studio, genre, tema, dan karakter
-- Korelasi anime, graph neighborhood, perbandingan semantik, dan grounded QA
-- Pencarian Wikidata melalui route server-side `/api/sparql`
-- Dashboard Supabase untuk CRUD anime dan sinkronisasi Jikan
-- Ekspor Turtle dan JSON-LD melalui `/api/rdf`
-- UI responsif untuk desktop dan perangkat mobile
+## 🌟 Fitur Utama
 
-## Teknologi
+- **Workbench Semantic Web**: Navigasi data dari `public/data/data.ttl` dan `public/data/animegraph.json`.
+- **Pencarian Lokal**: Mencari resource berdasarkan anime, studio, genre, tema, dan karakter.
+- **Analisis Relasi**: Korelasi anime, graph neighborhood, perbandingan semantik, dan grounded QA.
+- **Integrasi SPARQL**: Pencarian Wikidata melalui route server-side `/api/sparql`.
+- **Dashboard Admin**: Panel Supabase untuk CRUD anime dan sinkronisasi otomatis menggunakan Jikan API.
+- **Ekspor Data**: Mendukung ekspor format Turtle (`.ttl`) dan JSON-LD melalui endpoint `/api/rdf`.
+- **UI/UX Modern**: Desain antarmuka yang responsif, mendukung desktop dan mobile (dibangun dengan Tailwind CSS).
 
-- Next.js 14 dan React 18
-- TypeScript dan Tailwind CSS
-- Supabase PostgreSQL melalui `@supabase/supabase-js`
-- Prisma untuk tooling schema database
-- Jikan API dan Wikidata SPARQL
+## 💻 Teknologi yang Digunakan
 
-## Kebutuhan Sistem
+- **Frontend & Framework**: Next.js 14, React 18
+- **Bahasa Pemrograman**: TypeScript, Node.js
+- **Styling**: Tailwind CSS
+- **Database**: PostgreSQL (via Supabase)
+- **ORM**: Prisma
+- **Data Integrations**: Jikan API (MyAnimeList), Wikidata SPARQL API
 
-- Node.js 20 atau lebih baru
-- npm 10 atau lebih baru
-- Project Supabase untuk fitur admin dan sinkronisasi
+## 📋 Kebutuhan Sistem (System Requirements)
 
-## Setup Lokal
+- **Node.js**: v20.0.0 atau lebih baru
+- **npm**: v10.0.0 atau lebih baru
+- **Database**: Proyek Supabase aktif (untuk backend dan fitur sinkronisasi)
 
-1. Install dependency:
+*(Lihat `requirements.txt` atau `package.json` untuk daftar package).*
+
+## 🚀 Panduan Instalasi & Setup Lokal
+
+Ikuti langkah-langkah berikut untuk menjalankan aplikasi di komputer lokal:
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/FreyjaRingo/Projek-Akhir-Semantik-Web-2026-230058_230081_230083.git
+cd Projek-Akhir-Semantik-Web-2026-230058_230081_230083
+```
+
+### 2. Install Dependensi
+
+Jalankan perintah ini di terminal:
 
 ```bash
 npm install
 ```
 
-2. Buat file `.env` dari contoh:
+### 3. Konfigurasi Environment Variables
+
+Salin template file `.env` untuk mengatur konfigurasi lokal Anda:
 
 ```bash
 copy .env.example .env
 ```
 
-3. Isi variabel berikut:
+Buka file `.env` di code editor Anda dan isi variabel berikut dengan kredensial Supabase Anda:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
@@ -49,65 +67,76 @@ SUPABASE_SECRET_KEY="sb_secret_your-key-here"
 DATABASE_URL="postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres"
 ```
 
-`SUPABASE_SECRET_KEY` hanya boleh berada di server dan tidak boleh memakai prefix `NEXT_PUBLIC_`. Project lama masih dapat memakai `NEXT_PUBLIC_SUPABASE_ANON_KEY` dan `SUPABASE_SERVICE_ROLE_KEY`.
+**Catatan Keamanan:** `SUPABASE_SECRET_KEY` sangat rahasia. Jangan pernah mengirimnya ke browser (hindari memakai prefix `NEXT_PUBLIC_`).
 
-4. Jalankan `server/supabase-setup.sql` melalui Supabase SQL Editor. Panduan rinci tersedia di `SUPABASE-SETUP.md`.
+### 4. Setup Database (Supabase & Prisma)
 
-5. Jalankan aplikasi:
+a. Masuk ke halaman **SQL Editor** di Supabase Dashboard Anda.
+b. Salin dan jalankan seluruh query SQL dari file `server/supabase-setup.sql` (Panduan rinci dapat dilihat di `SUPABASE-SETUP.md`).
+c. Setelah database siap, jalankan sinkronisasi schema menggunakan Prisma:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
+*(Opsional) Jika Anda ingin memuat data awal, Anda bisa menggunakan file seed:*
+```bash
+npm run db:seed
+```
+
+### 5. Jalankan Aplikasi (Development Server)
+
+Mulailah development server lokal:
 
 ```bash
 npm run dev
 ```
 
-Buka `http://localhost:3000`.
+Server Next.js akan menyinkronkan data RDF terlebih dahulu, kemudian berjalan di `http://localhost:3000`. Silakan buka URL tersebut di browser Anda.
 
-## Perintah Penting
+## 🛠️ Perintah Penting (NPM Scripts)
 
-```bash
-npm run dev          # sinkronkan RDF lalu jalankan Next dev server
-npm run build        # build produksi lengkap
-npm run preview      # jalankan hasil build
-npm run sync:data    # buat ulang animegraph.json dari data RDF/dataset
-npm run db:generate  # generate Prisma client
-npm run db:push      # sinkronkan Prisma schema ke database
-npm run db:studio    # buka Prisma Studio
-```
+Berikut beberapa perintah yang sering digunakan selama pengembangan:
 
-Perintah `dev:client`, `build:client`, dan `preview:client` hanya dipertahankan untuk frontend Vite lama. Jalur aplikasi utama adalah Next.js.
+- `npm run dev` : Menjalankan server development (menyinkronkan RDF terlebih dahulu).
+- `npm run build` : Mem-build aplikasi untuk tahap produksi.
+- `npm run start` : Menjalankan aplikasi dari hasil build.
+- `npm run sync:data` : Membuat ulang file `animegraph.json` dari data RDF (`data.ttl`).
+- `npm run db:generate` : Meng-generate Prisma Client terbaru.
+- `npm run db:push` : Mendorong perubahan schema Prisma langsung ke database.
+- `npm run db:studio` : Membuka antarmuka Prisma Studio (Web GUI) untuk melihat/mengedit data database.
 
-## Route Aplikasi
+## 🗺️ Struktur Route Aplikasi
 
-- `/` - Semantic workbench
-- `/admin` - Ringkasan database
-- `/admin/anime` - CRUD anime
-- `/admin/sync` - Sinkronisasi dan pencarian Jikan
-- `/api/rdf?format=turtle` - Ekspor Turtle
-- `/api/rdf?format=jsonld` - Ekspor JSON-LD
-- `/api/sparql?q=Naruto` - Pencarian anime di Wikidata
+- `/` - Halaman Utama (Semantic workbench)
+- `/admin` - Dashboard Admin (Ringkasan database)
+- `/admin/anime` - Manajemen Data (CRUD anime)
+- `/admin/sync` - Alat sinkronisasi Jikan API
+- `/api/rdf?format=turtle` - API endpoint untuk Ekspor Turtle
+- `/api/rdf?format=jsonld` - API endpoint untuk Ekspor JSON-LD
+- `/api/sparql?q=[keyword]` - API endpoint untuk pencarian Wikidata
 
-## Data RDF
+## 📄 Manajemen Data RDF
 
-- Turtle: `public/data/data.ttl`
-- Graph JSON: `public/data/animegraph.json`
-- Raw Turtle: https://raw.githubusercontent.com/FreyjaRingo/Projek-Akhir-Semantik-Web-2026-230058_230081_230083/main/public/data/data.ttl
+Data Semantic Web (RDF) kami dikelola melalui:
+- **Turtle File**: `public/data/data.ttl`
+- **Graph JSON**: `public/data/animegraph.json`
 
-Setelah mengubah Turtle atau dataset, jalankan:
-
+Setiap kali Anda membuat perubahan manual pada file Turtle atau file Dataset, jalankan perintah sinkronisasi ini agar grafik JSON di-update:
 ```bash
 npm run sync:data
 ```
 
-## Keamanan Supabase
+## 🔒 Keamanan (Security Guidelines)
 
-- Jangan commit `.env` atau secret key.
-- Route admin memakai key server-side dan tidak mengirim secret ke browser.
-- SQL setup mengaktifkan RLS dan mencabut akses tabel dari role `anon` serta `authenticated`.
-- Rotasi segera key yang pernah tertulis di source, log, screenshot, atau pesan.
+- Pastikan `.env` terdaftar di `.gitignore` dan **jangan pernah di-commit**.
+- Route `/admin` menggunakan kunci tingkat server (*server-side key*) dan tidak membocorkan credential.
+- Aturan Row Level Security (RLS) diaktifkan di Supabase untuk mencegah manipulasi data dari *client-side* tanpa otorisasi.
 
-## Verifikasi
+## 🧪 Verifikasi Sistem
 
-Build dan smoke test terakhir dilakukan pada 14 Juni 2026:
-
-- `npm run build` berhasil
-- 15 route Next.js berhasil dibuat
-- Workbench, seluruh halaman admin, API anime, status sync, graph JSON, dan SPARQL Wikidata merespons HTTP 200
+Aplikasi telah melewati pengujian pra-laporan akhir:
+- Build produksi (`npm run build`) berhasil tanpa peringatan kritis.
+- Seluruh 15 rute Next.js (statis dan dinamis) dapat diakses dengan respons `HTTP 200`.
+- Sinkronisasi, visualisasi JSON graph, SPARQL, API ekspor RDF berfungsi normal.
