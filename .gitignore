@@ -45,3 +45,8 @@ prisma/migrations/
 .vercel
 
 .vercel
+
+# Generated PDFs and archives
+*.pdf
+*.zip
+LAPORAN-AKHIR-SEMWEB.md

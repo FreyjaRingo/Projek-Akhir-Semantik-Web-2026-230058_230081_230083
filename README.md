@@ -95,6 +95,36 @@ npm run dev
 
 Server Next.js akan menyinkronkan data RDF terlebih dahulu, kemudian berjalan di `http://localhost:3000`. Silakan buka URL tersebut di browser Anda.
 
+## 📚 Panduan Pengguna
+
+### 1. Eksplorasi Data (Workbench)
+- Buka halaman utama `/`.
+- Gunakan bar pencarian untuk menemukan anime, studio, genre, atau karakter.
+- Klik pada salah satu hasil untuk melihat halaman detail yang menyajikan relasi (contoh: studio pembuat, daftar karakter, tema).
+
+### 2. Analisis Relasi (Graph Neighborhood & Compare)
+- Buka panel Admin di `/admin`.
+- Navigasi ke menu **Graph Neighborhood** untuk melihat sebaran anime terkait dalam bentuk grafik.
+- Navigasi ke menu **Semantic Compare** untuk membandingkan dua buah anime secara semantik (melihat irisan genre, studio, dsb).
+
+### 3. Sinkronisasi Data Baru
+- Pada panel admin, masuk ke **Data Sync** (`/admin/sync`).
+- Masukkan ID MyAnimeList dari anime yang ingin ditambahkan.
+- Klik tombol sinkronisasi. Sistem akan secara otomatis mengambil data (termasuk relasi) dari Jikan API dan menyimpannya ke database RDF lokal.
+
+### 4. Grounded Question Answering (QA)
+- Navigasi ke menu QA.
+- Masukkan pertanyaan semantik (contoh: "Apa saja anime yang diproduksi oleh studio White Fox?").
+- Sistem akan menjawab pertanyaan berdasarkan relasi RDF yang ada di database.
+
+## 📊 Contoh Hasil
+
+Berikut adalah beberapa contoh hasil dari penggunaan aplikasi AnimeGraph Nexus:
+- **Pencarian Semantik**: Pencarian dengan query "Studio MAPPA" tidak hanya menampilkan entitas MAPPA, tetapi juga daftar seluruh anime yang diproduksi oleh studio tersebut beserta agregasi skornya.
+- **Visualisasi Relasi**: Anime `Steins;Gate` memvisualisasikan relasi `hasTheme: Time Travel`, `producedBy: White Fox`, dan `featuresCharacter: Kurisu Makise` dalam sebuah node-graph interaktif.
+- **Ekspor Data**: Mengakses endpoint `/api/rdf?format=turtle` menghasilkan representasi graf terstruktur (`.ttl`) dari seluruh isi katalog, siap di-load ke *triplestore* seperti Apache Jena.
+- **Semantic QA**: Saat bertanya "Rekomendasi anime mirip Frieren", sistem menampilkan jawaban beserta *grounding fact* dari RDF seperti irisan tema fantasi dan magic.
+
 ## 🛠️ Perintah Penting (NPM Scripts)
 
 Berikut beberapa perintah yang sering digunakan selama pengembangan:
