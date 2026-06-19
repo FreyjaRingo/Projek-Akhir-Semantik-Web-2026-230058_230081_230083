@@ -240,15 +240,17 @@ async function handleGenreSearch(question: string, entityName: string | null, ye
         // Group by anime
         const animeMap = new Map<string, any>();
         for (const item of animeWithGenre) {
-          if (item.anime && !animeMap.has(item.anime.id)) {
-            animeMap.set(item.anime.id, {
-              ...item.anime,
-              genres: [item.genre?.name].filter(Boolean)
+          const animeObj = Array.isArray(item.anime) ? item.anime[0] : item.anime;
+          const genreObj = Array.isArray(item.genre) ? item.genre[0] : item.genre;
+          if (animeObj && !animeMap.has(animeObj.id)) {
+            animeMap.set(animeObj.id, {
+              ...animeObj,
+              genres: [genreObj?.name].filter(Boolean)
             });
-          } else if (item.anime && animeMap.has(item.anime.id)) {
-            const existing = animeMap.get(item.anime.id);
-            if (item.genre?.name && !existing.genres.includes(item.genre.name)) {
-              existing.genres.push(item.genre.name);
+          } else if (animeObj && animeMap.has(animeObj.id)) {
+            const existing = animeMap.get(animeObj.id);
+            if (genreObj?.name && !existing.genres.includes(genreObj.name)) {
+              existing.genres.push(genreObj.name);
             }
           }
         }
@@ -333,15 +335,17 @@ async function handleStudioSearch(question: string, entityName: string | null): 
       if (animeWithStudio) {
         const animeMap = new Map<string, any>();
         for (const item of animeWithStudio) {
-          if (item.anime && !animeMap.has(item.anime.id)) {
-            animeMap.set(item.anime.id, {
-              ...item.anime,
-              studios: [item.studio?.name].filter(Boolean)
+          const animeObj = Array.isArray(item.anime) ? item.anime[0] : item.anime;
+          const studioObj = Array.isArray(item.studio) ? item.studio[0] : item.studio;
+          if (animeObj && !animeMap.has(animeObj.id)) {
+            animeMap.set(animeObj.id, {
+              ...animeObj,
+              studios: [studioObj?.name].filter(Boolean)
             });
-          } else if (item.anime && animeMap.has(item.anime.id)) {
-            const existing = animeMap.get(item.anime.id);
-            if (item.studio?.name && !existing.studios.includes(item.studio.name)) {
-              existing.studios.push(item.studio.name);
+          } else if (animeObj && animeMap.has(animeObj.id)) {
+            const existing = animeMap.get(animeObj.id);
+            if (studioObj?.name && !existing.studios.includes(studioObj.name)) {
+              existing.studios.push(studioObj.name);
             }
           }
         }
