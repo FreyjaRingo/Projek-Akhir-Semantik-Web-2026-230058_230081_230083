@@ -40,23 +40,56 @@ export async function GET(request: NextRequest) {
     const sourceStudios = sourceAnime.AnimeStudio?.map((s: any) => s.studio?.id) || [];
     const sourceThemes = sourceAnime.AnimeTheme?.map((t: any) => t.theme?.id) || [];
 
-    // Find related anime
-    let relatedQuery = supabase
-      .from('Anime')
-      .select(`
-        *,
-        AnimeStudio(studio:Studio(*)),
-        AnimeGenre(genre:Genre(*)),
-        AnimeTheme(theme:Theme(*))
-      `)
-      .neq('id', id);
+    // Find related anime by fetching IDs from join tables first
+    const candidateAnimeIds = new Set<string>();
 
-    // Add genre filter if we have genres
     if (sourceGenres.length > 0) {
-      relatedQuery = relatedQuery.contains('AnimeGenre.genreId', sourceGenres);
+      const { data: genreMatches } = await supabase
+        .from('AnimeGenre')
+        .select('animeId')
+        .in('genreId', sourceGenres)
+        .limit(200);
+      genreMatches?.forEach((m: any) => candidateAnimeIds.add(m.animeId));
     }
 
-    const { data: relatedAnime } = await relatedQuery.limit(50);
+    if (sourceStudios.length > 0) {
+      const { data: studioMatches } = await supabase
+        .from('AnimeStudio')
+        .select('animeId')
+        .in('studioId', sourceStudios)
+        .limit(100);
+      studioMatches?.forEach((m: any) => candidateAnimeIds.add(m.animeId));
+    }
+
+    if (sourceThemes.length > 0) {
+      const { data: themeMatches } = await supabase
+        .from('AnimeTheme')
+        .select('animeId')
+        .in('themeId', sourceThemes)
+        .limit(100);
+      themeMatches?.forEach((m: any) => candidateAnimeIds.add(m.animeId));
+    }
+
+    // Remove source anime ID
+    candidateAnimeIds.delete(id);
+
+    // Fetch the candidate anime
+    const candidateIdsArray = Array.from(candidateAnimeIds).slice(0, 80);
+    
+    let relatedAnime: any[] = [];
+    if (candidateIdsArray.length > 0) {
+      const { data } = await supabase
+        .from('Anime')
+        .select(`
+          *,
+          AnimeStudio(studio:Studio(*)),
+          AnimeGenre(genre:Genre(*)),
+          AnimeTheme(theme:Theme(*))
+        `)
+        .in('id', candidateIdsArray);
+      
+      relatedAnime = data || [];
+    }
 
     // Calculate relationship scores
     const scoredRelated = (relatedAnime || [])
